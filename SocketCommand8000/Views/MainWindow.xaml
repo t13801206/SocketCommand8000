@@ -1,0 +1,23 @@
+﻿<Window
+    x:Class="SocketCommand8000.Views.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:prism="http://prismlibrary.com/"
+    xmlns:viewmodels="clr-namespace:SocketCommand8000.ViewModels"
+    Width="525"
+    Height="350"
+    d:DataContext="{d:DesignInstance Type=viewmodels:MainWindowViewModel}"
+    prism:ViewModelLocator.AutoWireViewModel="True"
+    mc:Ignorable="d">
+    <StackPanel>
+        <Label Content="サーバー"/>
+        <Button Content="OPEN" Command="{Binding Open}"/>
+        <Button Content="CLOSE" Command="{Binding Close}"/>
+        
+        <Label Content="クライアント"/>
+        <Button Content="CONNECT" Command="{Binding Connect}"/>
+        <Button Content="SEND" Command="{Binding Send}"/>
+    </StackPanel>
+</Window>
