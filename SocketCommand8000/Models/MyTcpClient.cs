@@ -1,8 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
+using System.Net;
 using System.Net.Sockets;
-using System.Text;
 
 namespace SocketCommand8000.Models
 {
@@ -10,67 +9,99 @@ namespace SocketCommand8000.Models
     {
         private readonly string _address;
         private readonly int _port;
-        //private TcpClient _client;
+        private readonly IPEndPoint _localEP;
+        private MyClient _client;
 
-        public MyTcpClient(string address, int port)
+        public MyTcpClient(string address, int port, string localAddress = "127.0.0.1", int localPort = 9000)
         {
             _address = address;
             _port = port;
+            _localEP = new IPEndPoint(IPAddress.Parse(localAddress), localPort);
+            _client = CreateTcpClinet();
         }
 
-        private TcpClient CreateTcpClinet()
+        private MyClient CreateTcpClinet()
         {
-            Debug.WriteLine("create client");
-            return new TcpClient()
+            var client = new MyClient(_localEP)
             {
                 SendTimeout = 3000,
                 ReceiveTimeout = 3000,
             };
+            Debug.WriteLine($"create client {client.Client.LocalEndPoint}");
+            return client;
         }
 
-        public void Connect(TcpClient client)
+        public void Connect()
         {
-            if (client.Connected)
+            if (_client.Connected)
             {
-                Debug.WriteLine($"{client.Client.LocalEndPoint} already connected to {client.Client.RemoteEndPoint}");
+                Debug.WriteLine($"{_client.Client.LocalEndPoint} already connected to {_client.Client.RemoteEndPoint}");
                 return;
             }
 
             try
             {
-                client.Connect(_address, _port);
-                Debug.WriteLine($"{client.Client.LocalEndPoint} connect succeeded ===>>> {client.Client.RemoteEndPoint}");
+                if (_client.IsDead)
+                    _client = CreateTcpClinet();
+
+                _client.Connect(_address, _port);
+                Debug.WriteLine($"{_client.Client.LocalEndPoint} connect succeeded ===>>> {_client.Client.RemoteEndPoint}");
+            }
+            catch(SocketException e)
+            {
+                Debug.WriteLine($"re-create client {e.Message}");
+                _client.Close();
+                _client = CreateTcpClinet();
             }
             catch (Exception e)
             {
-                CreateTcpClinet();
                 Debug.WriteLine($"{e.Message}");
             }
         }
 
         public void Send(byte[] message)
         {
-            var client = CreateTcpClinet();
-            Connect(client);
-
             try
             {
-                Common.Print($"{client.Client.LocalEndPoint} -> {client.Client.RemoteEndPoint} Sending Message ===>>> ", message);
+                if(!_client.Connected)
+                {
+                    Debug.WriteLine("not connected");
+                    return;
+                }
+                Util.Print($"{_client.Client.LocalEndPoint} -> {_client.Client.RemoteEndPoint} Sending Message ===>>> ", message);
 
-                using NetworkStream stream = client.GetStream();
+                using NetworkStream stream = _client.GetStream();
                 stream.Write(message, 0, message.Length);
                 
-                byte[] receiveMessage = Common.Receive(client);
-                Common.Print($"{client.Client.LocalEndPoint} <- {client.Client.RemoteEndPoint} Received Message: <<<===", receiveMessage);
+                byte[] receiveMessage = Util.Receive(_client);
+                Util.Print($"{_client.Client.LocalEndPoint} <- {_client.Client.RemoteEndPoint} Received Message: <<<===", receiveMessage);
+
+                _client.Close();
+            }
+            catch(System.IO.IOException e)
+            {
+                Debug.WriteLine($"io exception {e.Message}");
+
             }
             catch (Exception e)
             {
                 Debug.WriteLine($"client send error !! {e.Message}");
             }
-            finally
-            {
-                client.Close();
-            }
+        }
+    }
+
+    internal class MyClient : TcpClient
+    {
+        public MyClient(IPEndPoint localEP) : base(localEP)
+        {
+        }
+
+        public bool IsDead { get; internal set; } = false;
+
+        protected override void Dispose(bool disposing)
+        {
+            IsDead = true;
+            base.Dispose(disposing);
         }
     }
 }

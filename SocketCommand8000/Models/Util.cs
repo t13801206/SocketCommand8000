@@ -4,7 +4,7 @@ using System.Net.Sockets;
 
 namespace SocketCommand8000.Models
 {
-    internal class Common
+    internal class Util
     {
         private const byte BUFFER_SIZE = 128;
 
@@ -15,6 +15,7 @@ namespace SocketCommand8000.Models
             int bytesToRead = -1;
 
             var stream = client.GetStream();
+            stream.ReadTimeout = 4000;
 
             while (true)
             {
@@ -22,14 +23,21 @@ namespace SocketCommand8000.Models
                     break;
 
                 int readBytes = stream.Read(buf, totalReadBytes, BUFFER_SIZE - totalReadBytes);
-                bytesToRead = buf[0];
-
                 totalReadBytes += readBytes;
-                Debug.WriteLine($"readBytes:{readBytes}, total: {totalReadBytes}");
+                Debug.WriteLine($"toRead: {bytesToRead}, readBytes:{readBytes}, total: {totalReadBytes}");
+
+                if (readBytes == 0)
+                    break; 
+
+                bytesToRead = buf[0];
             }
+            Debug.WriteLine($"End read, totalRead: {totalReadBytes} (toRead {bytesToRead})");
 
-            Debug.WriteLine("End read");
-
+            if (totalReadBytes == bytesToRead)
+                Debug.WriteLine("ok");
+            else
+                Debug.WriteLine("ng");
+                    
             byte[] receivedBytes = new byte[totalReadBytes];
             Array.Copy(buf, receivedBytes, totalReadBytes);
 

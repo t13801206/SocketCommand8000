@@ -1,9 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -15,36 +13,45 @@ namespace SocketCommand8000.Models
         private readonly int _port;
         private readonly TcpListener _listener;
         private CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
-        private const int BUFFER_SIZE = 128;
+        private Task _listenTask;
 
         public MyTcpListener(string address, int port)
         {
             _address = address;
             _port = port;
-
             _listener = new TcpListener(IPAddress.Parse(address), port);
         }
 
         public void Start()
         {
-            Debug.WriteLine($"start");
+            if(_cancellationTokenSource.Token.IsCancellationRequested)
+            {
+                ResetCancelToken();
+            }
+
             _listener.Start();
 
             var token = _cancellationTokenSource.Token;
-            Debug.WriteLine(token.CanBeCanceled);
-            var listenTask = Task.Run(() => Listen(token), token);
+            _listenTask = Task.Run(() => Listen(token), token);
+            Debug.WriteLine($"start");
         }
 
         public void Stop()
         {
-            Debug.WriteLine($"stop");
             _cancellationTokenSource.Cancel();
             _listener.Stop();
+            Debug.WriteLine($"stop");
+        }
+
+        public void ResetCancelToken()
+        {
+            _cancellationTokenSource = new CancellationTokenSource();
+            Debug.WriteLine("reset");
         }
 
         private void Listen(CancellationToken cancellationToken)
-        //private void Listen()
         {
+            Debug.WriteLine($"loop {_listenTask.Status}");
             try
             {
                 while (true)
@@ -61,14 +68,22 @@ namespace SocketCommand8000.Models
                         Debug.WriteLine($"{_listener.LocalEndpoint} accept {client.Client.RemoteEndPoint}");
                         try
                         {
-                            byte[] message = Common.Receive(client);
-                            Common.Print($"{_listener.LocalEndpoint} received from {client.Client.LocalEndPoint}", message);
+                            byte[] message = Util.Receive(client);
+                            Util.Print($"{_listener.LocalEndpoint} received from {client.Client.LocalEndPoint} <<<=== ", message);
 
                             SendBackOK(client);
+                        }
+                        catch(System.IO.IOException e)
+                        {
+                            Debug.WriteLine($"IO listen error {e.Message}");
                         }
                         catch (Exception e)
                         {
                             Debug.WriteLine($"listen error {e.Message}");
+                        }
+                        finally
+                        {
+                            client.Close();
                         }
                     }
                 }
@@ -76,6 +91,10 @@ namespace SocketCommand8000.Models
             catch(Exception e)
             {
                 Debug.WriteLine($"{e.Message}");
+            }
+            finally
+            {
+                Debug.WriteLine($"loop end {_listenTask.Status}");
             }
         }
 

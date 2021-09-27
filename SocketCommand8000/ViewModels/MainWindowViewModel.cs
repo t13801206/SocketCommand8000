@@ -31,7 +31,7 @@ namespace SocketCommand8000.ViewModels
             Connect = new ReactiveCommand()
                 .WithSubscribe(() =>
                 {
-                    //client.Connect();
+                    client.Connect();
                 });
 
             Send = new ReactiveCommand()
